@@ -7,7 +7,7 @@
 from scipy import ceil, complex64, float64, hamming, zeros
 from scipy.fftpack import fft# , ifft
 from scipy import ifft # こっちじゃないとエラー出るときあった気がする
-from scipy.io.wavfile import read
+from scipy.io.wavfile import read, write
 
 from matplotlib import pylab as pl
 
@@ -31,35 +31,27 @@ def stft(x, win, step):
         start = step * m
         X[m, :] = fft(new_x[start : start + N] * win)
     return X
-    
-# =======
-#  iSTFT
-# =======
-def istft(X, win, step):
-    M, N = X.shape
-    assert (len(win) == N), "FFT length and window length are different."
-    l = (M - 1) * step + N
 
-    print(M,N,l)
-    
-    x = zeros(l, dtype = float64)
-    wsum = zeros(l, dtype = float64)
-    for m in range(M):
-        start = step * m
-        ### 滑らかな接続
-        x[start : start + N] = x[start : start + N] + ifft(X[m, :]).real * win
-        wsum[start : start + N] += win ** 2
-    pos = (wsum != 0)
-    x_pre = x.copy()
-    ### 窓分のスケール合わせ
-    x[pos] /= wsum[pos]
-    return x
-    
-    
+def d(spectrogram, t, f):
+    if t-2 < 0 or t+1 >= len(spectrogram) or f-1 < 0 or f+1 >= len(spectrogram[0]):
+        return 0
+    pp = max(spectrogram[t-1][f], spectrogram[t-1][f-1], spectrogram[t-1][f+1],spectrogram[t-2][f])
+    np = min(spectrogram[t+1][f], spectrogram[t+1][f-1], spectrogram[t+1][f+1])
+    if(spectrogram[t][f] <= pp or np <= pp):
+        return 0;
+    return spectrogram[t][f] - pp + max(0, spectrogram[t+1][f] - spectrogram[t][f])
+
+def add_sound(data, t, soundst):
+    data[t] += 1000000
+    #sounds = soundst[:25]
+    #for i in range(len(sounds)):
+    #    data[min(t+i, len(data-1))] += sounds[i][0]
+
 if __name__ == "__main__":
-    wavfile = "./music/test.wav"
+    wavfile = "./Music/test.wav"
     fs, data_tmp = read(wavfile)
-    data = data_tmp[1000000:1002048,0]
+    soundfs, sounddata = read("./Sound/c.wav")
+    data = data_tmp[:,0]
     
     fftLen = 512 # とりあえず
     win = hamming(fftLen) # ハミング窓
@@ -67,24 +59,17 @@ if __name__ == "__main__":
     
     ### STFT
     spectrogram = stft(data, win, step)
-    
-    ### iSTFT
-    resyn_data = istft(spectrogram, win, step)
 
-    print("hoge")
- 
-    ### Plot
-    fig = pl.figure()
-    fig.add_subplot(311)
-    pl.plot(data)
-    pl.xlim([0, len(data)])
-    pl.title("Input signal", fontsize = 20)
-    fig.add_subplot(312)
-    pl.imshow(abs(spectrogram[:, : fftLen / 2 + 1].T), aspect = "auto", origin = "lower")
-    pl.title("Spectrogram", fontsize = 20)
-    fig.add_subplot(313)
-    pl.plot(resyn_data)
-    pl.xlim([0, len(resyn_data)])
-    pl.title("Resynthesized signal", fontsize = 20)
-    pl.show()
+    threshold = 20000
+    ### 音の立ち上がり認識
+    for t in range(len(spectrogram)):
+        flag = False
+        for f in range(len(spectrogram[t])):
+            if abs(d(spectrogram, t, f)) > threshold:
+                print(abs(d(spectrogram, t, f)))
+                flag = True
+        if flag:
+            add_sound(data, t*step, sounddata)
+            print(t)
+    write('./Music/testout.wav', fs, data)
     
