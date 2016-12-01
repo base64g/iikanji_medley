@@ -84,8 +84,8 @@ if __name__ == "__main__":
     write('./Music/outonly.wav', fs, data2)
 
     ### beatの計算
-    bottom_interval = 100
-    top_interval = 1000
+    bottom_interval = 200
+    top_interval = 700
     beat_interval = zeros(top_interval, dtype = float64)
     for t in range(len(vec_d)):
         print(t)
@@ -112,8 +112,8 @@ if __name__ == "__main__":
     ### 初期位置の計算
     data4 = zeros(len(data), dtype = float64)
     now_point = 0
-    vec_t = []
-    for start in range(top_interval):
+    vec_t = [0]
+    for start in range(top_interval*4):
         print(start)
         tmp_vec_t = [start]
         editdata = zeros(len(data), dtype = float64)
@@ -128,14 +128,23 @@ if __name__ == "__main__":
                 if vec_d[before+best_interval+dt] > tmppoint:
                   to = dt
                   tmppoint = vec_d[before+best_interval+dt]
-            point += tmppoint
+            if i%4 == 0:
+                point += tmppoint
+            else:
+                point += tmppoint*1.2
+            point -= abs(to)
             before += best_interval+to
             tmp_vec_t.append(before)
             editdata[before*step] += 1000000
-        if now_point < point:
+            i+=1
+        print(point*(1-tmp_vec_t[0]*step/len(data4)))
+        if now_point*(1-vec_t[0]*step/len(data4)) < point*(1-tmp_vec_t[0]*step/len(data4)):
             now_point = point
             data4 = editdata
-            vect_t = tmp_vec_t
+            vec_t = tmp_vec_t
     write('./Music/beat.wav',fs,data4)
-    for i in range(len(vect_t)-4):
-        write('./PartMusic/' + str(i) + '.wav', fs, data[vect_t[i]*step:vect_t[i+4]*step])
+    i=0
+    print(vec_t[0])
+    while i+8 < len(vec_t):
+        write('./PartMusic/' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
+        i+=8
