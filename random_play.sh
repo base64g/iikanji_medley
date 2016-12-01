@@ -7,6 +7,9 @@ cp "PartMusic/$toplay" output.wav
 while [ $i -le 100 ];
 do
     toplay=${musics[$RANDOM%$size]}
-    sox "PartMusic/$toplay" output.wav output.wav
+    echo $toplay
+    echo "PartMusic/$toplay"
+    sox output.wav PartMusic/${toplay} output2.wav
+    mv output2.wav output.wav
     i=$((i + 1));
 done
