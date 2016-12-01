@@ -41,32 +41,15 @@ def d(spectrogram, t, f):
         return 0;
     return spectrogram[t][f] - pp + max(0, spectrogram[t+1][f] - spectrogram[t][f])
 
-def add_sound(data, data2, t, loud):
-    data2[t] += loud
-
-def make_graph(data):
+def make_graph(plots):
     fig = pl.figure()
     fig.add_subplot(311)
-    pl.plot(data)
-    pl.xlim([0, len(data)])
+    pl.plot(plots)
+    pl.xlim([0, len(plots)])
     pl.title("Data", fontsize = 20)
     pl.show()
     
-    
-if __name__ == "__main__":
-    wavfile = "./Music/test.wav"
-    fs, data_tmp = read(wavfile)
-    data = data_tmp[:,0]
-    
-    fftLen = 512 # とりあえず
-    win = hamming(fftLen) # ハミング窓
-    step = fftLen / 4
-    
-    ### STFT
-    spectrogram = stft(data, win, step)
-
-    threshold = 100000
-    ### 音の立ち上がり認識
+def cal_beat_power(spectrogram, threshold):
     data2 = zeros(len(data), dtype = float64)
     vec_d = zeros(len(spectrogram), dtype = float64)
     for t in range(len(spectrogram)):
@@ -78,14 +61,12 @@ if __name__ == "__main__":
                 flag += d_temp
         if flag > 0:
             vec_d[t] = flag
-            add_sound(data, data2, t*step, flag)
+            data2[t] += 1000000
             print(t)
-    write('./Music/testout.wav', fs, data)
-    write('./Music/outonly.wav', fs, data2)
+    write('./DebugMusic/outonly.wav', fs, data2)
+    return vec_d
 
-    ### beatの計算
-    bottom_interval = 200
-    top_interval = 700
+def cal_interval(vec_d, bottom_interval, top_interval):
     beat_interval = zeros(top_interval, dtype = float64)
     for t in range(len(vec_d)):
         print(t)
@@ -101,16 +82,11 @@ if __name__ == "__main__":
             best_interval = i
             now_point = beat_interval[i]
     print(best_interval)
-    data3 = zeros(len(data), dtype = float64)
-    i = 0
-    while i*best_interval*step < len(data3):
-        data3[i*best_interval*step] += 1000000
-        i+=1
-    write('./Music/beat_interval.wav', fs, data3)
     #make_graph(beat_interval)
+    return best_interval
 
-    ### 初期位置の計算
-    data4 = zeros(len(data), dtype = float64)
+def cal_start(vec_d, best_interval, bottom_interval, top_interval):
+    out = zeros(len(data), dtype = float64)
     now_point = 0
     vec_t = [0]
     for start in range(top_interval*4):
@@ -121,7 +97,7 @@ if __name__ == "__main__":
         i = 0
         before = start
         dts = [10, -10, 9, -9, 8, -8, 7, -7, 6, -6, 5, -5, 4, -4, 3, -3, 2, -2, 1, -1, 0]
-        while (before+best_interval+2)*step < len(data4):
+        while (before+best_interval+2)*step < len(data):
             to = 0
             tmppoint = 0
             for dt in dts:
@@ -137,14 +113,44 @@ if __name__ == "__main__":
             tmp_vec_t.append(before)
             editdata[before*step] += 1000000
             i+=1
-        print(point*(1-tmp_vec_t[0]*step/len(data4)))
-        if now_point*(1-vec_t[0]*step/len(data4)) < point*(1-tmp_vec_t[0]*step/len(data4)):
+        print(point*(1-tmp_vec_t[0]*step/len(out)))
+        if now_point*(1-vec_t[0]*step/len(out)) < point*(1-tmp_vec_t[0]*step/len(out)):
             now_point = point
-            data4 = editdata
+            out = editdata
             vec_t = tmp_vec_t
-    write('./Music/beat.wav',fs,data4)
-    i=0
+    write('./DebugMusic/beat.wav',fs,out)
     print(vec_t[0])
-    while i+8 < len(vec_t):
-        write('./PartMusic/' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
+    return vec_t
+
+def split_music(wavfile):
+    global fs, data, step
+    fs, data_tmp = read('./Music/' + wavfile)
+    data = data_tmp[:,0]
+    
+    fftLen = 512 # とりあえず
+    win = hamming(fftLen) # ハミング窓
+    step = fftLen / 4
+    
+    ### STFT
+    spectrogram = stft(data, win, step)
+
+    ### 音の立ち上がり認識
+    threshold = 100000
+    vec_d = cal_beat_power(spectrogram, threshold)
+    
+    ### beatの計算
+    bottom_interval = 200
+    top_interval = 700
+    best_interval = cal_interval(vec_d, bottom_interval, top_interval)
+
+    ### 初期位置の計算
+    vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
+
+    ### 出力(最後の８小節は無音であることが多いのでカット)
+    i = 0
+    while i+8 < len(vec_t)-1:
+        write('./PartMusic/' + wavfile + '_' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
         i+=8
+
+if __name__ == "__main__":
+    split_music('test.wav')
