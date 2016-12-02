@@ -10,7 +10,7 @@ from scipy import ifft # こっちじゃないとエラー出るときあった�
 from scipy.io.wavfile import read, write
 
 from matplotlib import pylab as pl
-
+import os
 # ======
 #  STFT
 # ======
@@ -49,7 +49,7 @@ def make_graph(plots):
     pl.title("Data", fontsize = 20)
     pl.show()
     
-def cal_beat_power(spectrogram, threshold):
+def cal_beat_power(spectrogram):
     data2 = zeros(len(data), dtype = float64)
     vec_d = zeros(len(spectrogram), dtype = float64)
     for t in range(len(spectrogram)):
@@ -61,7 +61,7 @@ def cal_beat_power(spectrogram, threshold):
                 flag += d_temp
         if flag > 0:
             vec_d[t] = flag
-            data2[t] += 1000000
+            data2[t] += 1
             print(t)
     write('./DebugMusic/outonly.wav', fs, data2)
     return vec_d
@@ -82,14 +82,14 @@ def cal_interval(vec_d, bottom_interval, top_interval):
             best_interval = i
             now_point = beat_interval[i]
     print(best_interval)
-    #make_graph(beat_interval)
+    make_graph(beat_interval)
     return best_interval
 
 def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     out = zeros(len(data), dtype = float64)
     now_point = 0
     vec_t = [0]
-    for start in range(top_interval*4):
+    for start in range(best_interval*4 + 50):
         print(start)
         tmp_vec_t = [start]
         editdata = zeros(len(data), dtype = float64)
@@ -97,21 +97,23 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         i = 0
         before = start
         dts = [10, -10, 9, -9, 8, -8, 7, -7, 6, -6, 5, -5, 4, -4, 3, -3, 2, -2, 1, -1, 0]
-        while (before+best_interval+2)*step < len(data):
+        while (before+best_interval+11)*step < len(data):
             to = 0
             tmppoint = 0
             for dt in dts:
                 if vec_d[before+best_interval+dt] > tmppoint:
                   to = dt
                   tmppoint = vec_d[before+best_interval+dt]
-            if i%4 == 0:
-                point += tmppoint
+            if i%2 == 1:
+                point += tmppoint*1.3
+            elif i%4==0:
+                point += tmppoint*1.1
             else:
-                point += tmppoint*1.2
-            point -= abs(to)
+                point += tmppoint
+                point -= abs(to)
             before += best_interval+to
             tmp_vec_t.append(before)
-            editdata[before*step] += 1000000
+            editdata[before*step] += 1
             i+=1
         print(point*(1-tmp_vec_t[0]*step/len(out)))
         if now_point*(1-vec_t[0]*step/len(out)) < point*(1-tmp_vec_t[0]*step/len(out)):
@@ -123,7 +125,7 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     return vec_t
 
 def split_music(wavfile):
-    global fs, data, step
+    global fs, data, step, threshold
     fs, data_tmp = read('./Music/' + wavfile)
     data = data_tmp[:,0]
     
@@ -135,12 +137,12 @@ def split_music(wavfile):
     spectrogram = stft(data, win, step)
 
     ### 音の立ち上がり認識
-    threshold = 100000
-    vec_d = cal_beat_power(spectrogram, threshold)
+    threshold = 500000
+    vec_d = cal_beat_power(spectrogram)
     
     ### beatの計算
-    bottom_interval = 200
-    top_interval = 700
+    bottom_interval = 360
+    top_interval = 550
     best_interval = cal_interval(vec_d, bottom_interval, top_interval)
 
     ### 初期位置の計算
@@ -149,8 +151,17 @@ def split_music(wavfile):
     ### 出力(最後の８小節は無音であることが多いのでカット)
     i = 0
     while i+8 < len(vec_t)-1:
-        write('./PartMusic/' + wavfile + '_' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
+        write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
         i+=8
 
 if __name__ == "__main__":
-    split_music('test.wav')
+    files = os.listdir('Music')
+    query = input()
+    if query == "all":
+        for music in files:
+            print(music)
+            ftitle, fext = os.path.splitext(music)
+            if fext == ".wav":
+                split_music(music)
+    else:
+        split_music(query)
