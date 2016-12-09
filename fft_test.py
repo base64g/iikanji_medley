@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-# ==================================
-#
-#    Short Time Fourier Trasform
-#
-# ==================================
 from scipy import ceil, complex64, float64, hamming, zeros
 from scipy.fftpack import fft# , ifft
 from scipy import ifft # こっちじゃないとエラー出るときあった気がする
@@ -12,15 +7,12 @@ from scipy.io.wavfile import read, write
 from matplotlib import pylab as pl
 import os
 import math
-# ======
-#  STFT
-# ======
 """
 x : 入力信号(モノラル)
 win : 窓関数
 step : シフト幅
 """
-def stft(x, win, step):
+def stft(x, win):
     l = len(x) # 入力信号の長さ
     N = len(win) # 窓幅、つまり切り出す幅
     M = int(ceil(float(l - N + step) / step)) # スペクトログラムの時間フレーム数
@@ -32,6 +24,21 @@ def stft(x, win, step):
         start = step * m
         X[m, :] = fft(new_x[start : start + N] * win)[:N/2+1]
     return abs(X)
+
+def fft_distance(x, y):
+    l = min(len(x), len(y))
+    x = x[:l]
+    y = y[:l]
+    win = hamming(l)
+    spectrum_x = abs(fft(x*win)[:l/2+1])
+    spectrum_y = abs(fft(y*win)[:l/2+1])
+    point = 0
+    for i in range(len(spectrum_x)):
+        diff = abs(spectrum_x[i] - spectrum_y[i])
+        if diff > threshold:
+            point += diff
+    print(point)
+    return point
 
 def d(spectrogram, t, f):
     if t-2 < 0 or t+1 >= len(spectrogram) or f-1 < 0 or f+1 >= len(spectrogram[0]):
@@ -92,13 +99,13 @@ def cal_interval(vec_d, bottom_interval, top_interval):
             now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
 
     print(best_interval)
-    make_graph(beat_interval)
+    #make_graph(beat_interval)
     return best_interval
 
 def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     now_point = 0
     vec_t = [0]
-    for start in range(best_interval*4 + 50):
+    for start in range(best_interval + 50):
         print(start)
         tmp_vec_t = [start]
         point = 0
@@ -120,6 +127,7 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         if now_point*(1-vec_t[0]*step/len(data)) < point*(1-tmp_vec_t[0]*step/len(data)):
             now_point = point
             vec_t = tmp_vec_t
+            
     div4vec_t = [vec_t[0]]
     for i in range(len(vec_t)-1):
         for j in range(1,5):
@@ -129,9 +137,38 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         out[div4vec_t[i]*step] += 5
     write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
     os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.5 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.4 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
     print(vec_t[0])
     return div4vec_t
+
+def cal_phrase(vec_t):
+    yosa = zeros(len(vec_t), dtype = float64)
+    for i in range(math.floor(len(vec_t)/3),math.floor(len(vec_t)*2/3)):
+        yosa[i] += fft_distance(data[vec_t[i-8]*step:vec_t[i+1]*step], data[vec_t[i]*step:vec_t[i+9]*step])
+    tongari = zeros(8, dtype = float64)
+    for i in range(3, len(yosa)-3):
+        if yosa[i] > yosa[i-1] and yosa[i] > yosa[i+1] and yosa[i] > yosa[i-2] and yosa[i] > yosa[i+2]:
+            tongari[i%8] += 1
+    #make_graph(yosa)
+    #make_graph(tongari)
+    cut = 0
+    point = 0
+    for i in range(len(tongari)):
+        if point < tongari[i]:
+            cut = i
+            point = tongari[i]
+    phrase = [vec_t[cut]]
+    while cut+8 < len(vec_t):
+        cut += 8
+        phrase.append(vec_t[cut])
+
+    out = zeros(len(data), dtype = float64)
+    for i in range(len(phrase)):
+        out[phrase[i]*step] += 5
+    write('./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav',fs,out)
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav -v 0.4 ./DebugMusic/temp.wav ./DebugMusic/mixphrase' + wavfile.replace(' ', '') + '.wav')
+        
+    return phrase
 
 def split_music(inputfile):
     global fs, data, step, threshold, wavfile
@@ -144,7 +181,7 @@ def split_music(inputfile):
     step = fftLen / 4
     
     ### STFT
-    spectrogram = stft(data, win, step)
+    spectrogram = stft(data, win)
 
     ### 音の立ち上がり認識
     threshold = 500000
@@ -158,11 +195,12 @@ def split_music(inputfile):
     ### 初期位置の計算
     vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
 
+    ### todo: フレーズの抽出（４小節ごといい感じにに区切る）
+    phrase = cal_phrase(vec_t)
+    
     ### 出力(最後の８小節は無音であることが多いのでカット)
-    i = 0
-    while i+8 < len(vec_t)-1:
-        write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
-        i+=8
+    for i in range(len(phrase)-1):
+        write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[phrase[i]*step:phrase[i+1]*step])
 
 if __name__ == "__main__":
     files = os.listdir('Music')
