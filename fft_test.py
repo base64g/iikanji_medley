@@ -72,18 +72,27 @@ def cal_interval(vec_d, bottom_interval, top_interval):
     for t in range(len(vec_d)):
         print(t)
         if vec_d[t] > 0:
-            for t2 in range(bottom_interval,top_interval):
+            for t2 in range(1,top_interval):
                 if t+t2 >= len(vec_d):
                     break
                 beat_interval[t2] += vec_d[t+t2]
     now_point = 0
     best_interval = 1
-    for i in range(top_interval):
-        if now_point < beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]:
+    for i in range(math.floor(bottom_interval/2), math.floor(top_interval/2)):
+        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
+            if beat_interval[i*2] > beat_interval[i*2+1]:
+                best_interval = i*2
+            else:
+                best_interval = i*2+1
+            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
+
+    for i in range(bottom_interval, top_interval):
+        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
             best_interval = i
-            now_point = beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]
+            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
+
     print(best_interval)
-    #make_graph(beat_interval)
+    make_graph(beat_interval)
     return best_interval
 
 def cal_start(vec_d, best_interval, bottom_interval, top_interval):
@@ -95,21 +104,15 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         point = 0
         i = 0
         before = start
-        dts = [10, -10, 9, -9, 8, -8, 7, -7, 6, -6, 5, -5, 4, -4, 3, -3, 2, -2, 1, -1, 0]
+        dts = [4, -4, 3, -3, 2, -2, 1, -1, 0]
         while (before+best_interval+11) < len(vec_d):
             to = 0
             tmppoint = 0
             for dt in dts:
-                if vec_d[before+best_interval+dt] > tmppoint:
+                if vec_d[before+best_interval+dt] > tmppoint + abs(dt) * 5:
                   to = dt
-                  tmppoint = vec_d[before+best_interval+dt]
-            if i%2 == 1:
-                point += tmppoint*1.3
-            elif i%4==0:
-                point += tmppoint*1.1
-            else:
-                point += tmppoint
-                point -= abs(to)
+                  tmppoint = vec_d[before+best_interval+dt] - abs(dt) * 5
+            point += tmppoint
             before += best_interval+to
             tmp_vec_t.append(before)
             i+=1
@@ -117,14 +120,18 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         if now_point*(1-vec_t[0]*step/len(data)) < point*(1-tmp_vec_t[0]*step/len(data)):
             now_point = point
             vec_t = tmp_vec_t
+    div4vec_t = [vec_t[0]]
+    for i in range(len(vec_t)-1):
+        for j in range(1,5):
+            div4vec_t.append(vec_t[i] + (vec_t[i+1] - vec_t[i])*j/4)
     out = zeros(len(data), dtype = float64)
-    for i in range(len(vec_t)):
-        out[vec_t[i]*step] += 5
+    for i in range(len(div4vec_t)):
+        out[div4vec_t[i]*step] += 5
     write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
     os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.1 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.5 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
     print(vec_t[0])
-    return vec_t
+    return div4vec_t
 
 def split_music(inputfile):
     global fs, data, step, threshold, wavfile
