@@ -11,6 +11,7 @@ from scipy.io.wavfile import read, write
 
 from matplotlib import pylab as pl
 import os
+import math
 # ======
 #  STFT
 # ======
@@ -54,20 +55,20 @@ def cal_beat_power(spectrogram):
     vec_d = zeros(len(spectrogram), dtype = float64)
     for t in range(len(spectrogram)):
         flag = 0
-        for f in range(len(spectrogram[t])):
+        for f in range(math.floor(len(spectrogram[t])/3)):
             d_temp = d(spectrogram, t, f)
             if d_temp > threshold:
                 print(d_temp)
                 flag += d_temp
         if flag > 0:
             vec_d[t] = flag
-            data2[t] += 1
+            data2[t*step] += 5
             print(t)
-    write('./DebugMusic/outonly.wav', fs, data2)
+    write('./DebugMusic/' + wavfile.replace(' ', '') + 'outonly.wav', fs, data2)
     return vec_d
 
 def cal_interval(vec_d, bottom_interval, top_interval):
-    beat_interval = zeros(top_interval, dtype = float64)
+    beat_interval = zeros(top_interval+1, dtype = float64)
     for t in range(len(vec_d)):
         print(t)
         if vec_d[t] > 0:
@@ -77,27 +78,25 @@ def cal_interval(vec_d, bottom_interval, top_interval):
                 beat_interval[t2] += vec_d[t+t2]
     now_point = 0
     best_interval = 1
-    for i in range(len(beat_interval)):
-        if now_point < beat_interval[i]:
+    for i in range(top_interval):
+        if now_point < beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]:
             best_interval = i
-            now_point = beat_interval[i]
+            now_point = beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]
     print(best_interval)
-    make_graph(beat_interval)
+    #make_graph(beat_interval)
     return best_interval
 
 def cal_start(vec_d, best_interval, bottom_interval, top_interval):
-    out = zeros(len(data), dtype = float64)
     now_point = 0
     vec_t = [0]
     for start in range(best_interval*4 + 50):
         print(start)
         tmp_vec_t = [start]
-        editdata = zeros(len(data), dtype = float64)
         point = 0
         i = 0
         before = start
         dts = [10, -10, 9, -9, 8, -8, 7, -7, 6, -6, 5, -5, 4, -4, 3, -3, 2, -2, 1, -1, 0]
-        while (before+best_interval+11)*step < len(data):
+        while (before+best_interval+11) < len(vec_d):
             to = 0
             tmppoint = 0
             for dt in dts:
@@ -113,19 +112,23 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
                 point -= abs(to)
             before += best_interval+to
             tmp_vec_t.append(before)
-            editdata[before*step] += 1
             i+=1
-        print(point*(1-tmp_vec_t[0]*step/len(out)))
-        if now_point*(1-vec_t[0]*step/len(out)) < point*(1-tmp_vec_t[0]*step/len(out)):
+        print(point*(1-tmp_vec_t[0]*step/len(data)))
+        if now_point*(1-vec_t[0]*step/len(data)) < point*(1-tmp_vec_t[0]*step/len(data)):
             now_point = point
-            out = editdata
             vec_t = tmp_vec_t
-    write('./DebugMusic/beat.wav',fs,out)
+    out = zeros(len(data), dtype = float64)
+    for i in range(len(vec_t)):
+        out[vec_t[i]*step] += 5
+    write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
+    os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.1 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
     print(vec_t[0])
     return vec_t
 
-def split_music(wavfile):
-    global fs, data, step, threshold
+def split_music(inputfile):
+    global fs, data, step, threshold, wavfile
+    wavfile = inputfile
     fs, data_tmp = read('./Music/' + wavfile)
     data = data_tmp[:,0]
     
@@ -142,7 +145,7 @@ def split_music(wavfile):
     
     ### beatの計算
     bottom_interval = 360
-    top_interval = 550
+    top_interval = 700
     best_interval = cal_interval(vec_d, bottom_interval, top_interval)
 
     ### 初期位置の計算
