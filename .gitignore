@@ -3,3 +3,4 @@ DebugMusic/*
 PartMusic/*
 .DS_Store
 output.wav
+!.gitkeep
