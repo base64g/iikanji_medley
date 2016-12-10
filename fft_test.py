@@ -62,7 +62,7 @@ def cal_beat_power(spectrogram):
     vec_d = zeros(len(spectrogram), dtype = float64)
     for t in range(len(spectrogram)):
         flag = 0
-        for f in range(math.floor(len(spectrogram[t])/3)):
+        for f in range(math.floor(len(spectrogram[t])/5)):
             d_temp = d(spectrogram, t, f)
             if d_temp > threshold:
                 print(d_temp)
@@ -137,7 +137,7 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         out[div4vec_t[i]*step] += 5
     write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
     os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.4 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
     print(vec_t[0])
     return div4vec_t
 
@@ -149,9 +149,8 @@ def cal_phrase(vec_t, vec_d):
                 yosa[i*2+k] += vec_d[vec_t[i]+(vec_t[i+1]-vec_t[i])*k/2+j]
     tongari = zeros(16, dtype = float64)
     for i in range(len(yosa)):
-        tongari[i%16] += yosa[i]
-    make_graph(yosa)
-    make_graph(tongari)
+        tongari[i%8] += yosa[i]
+
     cut = 0
     point = 0
     for i in range(len(tongari)):
@@ -167,15 +166,15 @@ def cal_phrase(vec_t, vec_d):
     else:
         cut = math.floor(cut/2 + 0.5)
         phrase = [vec_t[cut]]
-        while cut+8 < len(vec_t):
-            cut += 8
+        while cut+16 < len(vec_t):
+            cut += 16
             phrase.append(vec_t[cut])
 
     out = zeros(len(data), dtype = float64)
     for i in range(len(phrase)):
         out[phrase[i]*step] += 5
     write('./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav',fs,out)
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav -v 0.4 ./DebugMusic/temp.wav ./DebugMusic/mixphrase' + wavfile.replace(' ', '') + '.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixphrase' + wavfile.replace(' ', '') + '.wav')
         
     return phrase
 
@@ -204,10 +203,11 @@ def split_music(inputfile):
     ### 初期位置の計算
     vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
 
-    ### todo: フレーズの抽出（４小節ごといい感じにに区切る）
+    ### todo: フレーズの抽出（8小節ごといい感じにに区切る）
     phrase = cal_phrase(vec_t,vec_d)
     
     ### 出力(最後の８小節は無音であることが多いのでカット)
+    i=0
     for i in range(len(phrase)-1):
         write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[phrase[i]*step:phrase[i+1]*step])
 
