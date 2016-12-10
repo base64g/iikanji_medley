@@ -141,26 +141,35 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     print(vec_t[0])
     return div4vec_t
 
-def cal_phrase(vec_t):
-    yosa = zeros(len(vec_t), dtype = float64)
-    for i in range(math.floor(len(vec_t)/3),math.floor(len(vec_t)*2/3)):
-        yosa[i] += fft_distance(data[vec_t[i-8]*step:vec_t[i+1]*step], data[vec_t[i]*step:vec_t[i+9]*step])
-    tongari = zeros(8, dtype = float64)
-    for i in range(3, len(yosa)-3):
-        if yosa[i] > yosa[i-1] and yosa[i] > yosa[i+1] and yosa[i] > yosa[i-2] and yosa[i] > yosa[i+2]:
-            tongari[i%8] += 1
-    #make_graph(yosa)
-    #make_graph(tongari)
+def cal_phrase(vec_t, vec_d):
+    yosa = zeros(len(vec_t)*2+2, dtype = float64)
+    for i in range(5,len(vec_t)-5):
+        for k in range(0,2):
+            for j in range(-5, 6):
+                yosa[i*2+k] += vec_d[vec_t[i]+(vec_t[i+1]-vec_t[i])*k/2+j]
+    tongari = zeros(16, dtype = float64)
+    for i in range(len(yosa)):
+        tongari[i%16] += yosa[i]
+    make_graph(yosa)
+    make_graph(tongari)
     cut = 0
     point = 0
     for i in range(len(tongari)):
         if point < tongari[i]:
             cut = i
             point = tongari[i]
-    phrase = [vec_t[cut]]
-    while cut+8 < len(vec_t):
-        cut += 8
-        phrase.append(vec_t[cut])
+    if cut%2 == 1:
+        cut = math.floor(cut/2)
+        phrase = [math.floor((vec_t[cut]+vec_t[cut+1])/2)]
+        while cut+9 < len(vec_t):
+            cut += 8
+            phrase.append(math.floor((vec_t[cut]+vec_t[cut+1])/2))
+    else:
+        cut = math.floor(cut/2 + 0.5)
+        phrase = [vec_t[cut]]
+        while cut+8 < len(vec_t):
+            cut += 8
+            phrase.append(vec_t[cut])
 
     out = zeros(len(data), dtype = float64)
     for i in range(len(phrase)):
@@ -196,7 +205,7 @@ def split_music(inputfile):
     vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
 
     ### todo: フレーズの抽出（４小節ごといい感じにに区切る）
-    phrase = cal_phrase(vec_t)
+    phrase = cal_phrase(vec_t,vec_d)
     
     ### 出力(最後の８小節は無音であることが多いのでカット)
     for i in range(len(phrase)-1):
