@@ -1,6 +1,6 @@
 Music/*
 DebugMusic/*
-PartMusic/*
+PartMusic/*/*/*
 .DS_Store
 output.wav
 !.gitkeep
