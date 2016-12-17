@@ -208,8 +208,10 @@ def split_music(inputfile):
     
     ### 出力(最後の８小節は無音であることが多いのでカット)
     i=0
-    for i in range(len(phrase)-1):
-        write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[phrase[i]*step:phrase[i+1]*step])
+    tsunagi=0.2 #spliceする時間[s]
+    for i in range(len(phrase)-2):
+        if phrase[i]*step - tsunagi*fs >= 0:
+            write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs ])
 
 if __name__ == "__main__":
     files = os.listdir('Music')
