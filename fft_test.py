@@ -1,26 +1,19 @@
 # -*- coding: utf-8 -*-
-# ==================================
-#
-#    Short Time Fourier Trasform
-#
-# ==================================
 from scipy import ceil, complex64, float64, hamming, zeros
-from scipy.fftpack import fft# , ifft
-from scipy import ifft # こっちじゃないとエラー出るときあった気がする
+from scipy.fftpack import fft
+from scipy import ifft
 from scipy.io.wavfile import read, write
+import numpy as np
 
 from matplotlib import pylab as pl
 import os
 import math
-# ======
-#  STFT
-# ======
 """
 x : 入力信号(モノラル)
 win : 窓関数
 step : シフト幅
 """
-def stft(x, win, step):
+def stft(x):
     l = len(x) # 入力信号の長さ
     N = len(win) # 窓幅、つまり切り出す幅
     M = int(ceil(float(l - N + step) / step)) # スペクトログラムの時間フレーム数
@@ -32,6 +25,21 @@ def stft(x, win, step):
         start = step * m
         X[m, :] = fft(new_x[start : start + N] * win)[:N/2+1]
     return abs(X)
+
+def fft_distance(x, y):
+    l = min(len(x), len(y))
+    x = x[:l]
+    y = y[:l]
+    win = hamming(l)
+    spectrum_x = abs(fft(x*win)[:l/2+1])
+    spectrum_y = abs(fft(y*win)[:l/2+1])
+    point = 0
+    for i in range(len(spectrum_x)):
+        diff = abs(spectrum_x[i] - spectrum_y[i])
+        if diff > threshold:
+            point += diff
+    print(point)
+    return point
 
 def d(spectrogram, t, f):
     if t-2 < 0 or t+1 >= len(spectrogram) or f-1 < 0 or f+1 >= len(spectrogram[0]):
@@ -55,7 +63,7 @@ def cal_beat_power(spectrogram):
     vec_d = zeros(len(spectrogram), dtype = float64)
     for t in range(len(spectrogram)):
         flag = 0
-        for f in range(math.floor(len(spectrogram[t])/3)):
+        for f in range(math.floor(len(spectrogram[t])/5)):
             d_temp = d(spectrogram, t, f)
             if d_temp > threshold:
                 print(d_temp)
@@ -72,16 +80,25 @@ def cal_interval(vec_d, bottom_interval, top_interval):
     for t in range(len(vec_d)):
         print(t)
         if vec_d[t] > 0:
-            for t2 in range(bottom_interval,top_interval):
+            for t2 in range(1,top_interval):
                 if t+t2 >= len(vec_d):
                     break
                 beat_interval[t2] += vec_d[t+t2]
     now_point = 0
     best_interval = 1
-    for i in range(top_interval):
-        if now_point < beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]:
+    for i in range(math.floor(bottom_interval/2), math.floor(top_interval/2)):
+        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
+            if beat_interval[i*2] > beat_interval[i*2+1]:
+                best_interval = i*2
+            else:
+                best_interval = i*2+1
+            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
+
+    for i in range(bottom_interval, top_interval):
+        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
             best_interval = i
-            now_point = beat_interval[i-1] + beat_interval[i] + beat_interval[i+1]
+            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
+
     print(best_interval)
     #make_graph(beat_interval)
     return best_interval
@@ -89,27 +106,21 @@ def cal_interval(vec_d, bottom_interval, top_interval):
 def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     now_point = 0
     vec_t = [0]
-    for start in range(best_interval*4 + 50):
+    for start in range(best_interval + 50):
         print(start)
         tmp_vec_t = [start]
         point = 0
         i = 0
         before = start
-        dts = [10, -10, 9, -9, 8, -8, 7, -7, 6, -6, 5, -5, 4, -4, 3, -3, 2, -2, 1, -1, 0]
+        dts = [4, -4, 3, -3, 2, -2, 1, -1, 0]
         while (before+best_interval+11) < len(vec_d):
             to = 0
             tmppoint = 0
             for dt in dts:
-                if vec_d[before+best_interval+dt] > tmppoint:
+                if vec_d[before+best_interval+dt] > tmppoint + abs(dt) * 5:
                   to = dt
-                  tmppoint = vec_d[before+best_interval+dt]
-            if i%2 == 1:
-                point += tmppoint*1.3
-            elif i%4==0:
-                point += tmppoint*1.1
-            else:
-                point += tmppoint
-                point -= abs(to)
+                  tmppoint = vec_d[before+best_interval+dt] - abs(dt) * 5
+            point += tmppoint
             before += best_interval+to
             tmp_vec_t.append(before)
             i+=1
@@ -117,17 +128,82 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
         if now_point*(1-vec_t[0]*step/len(data)) < point*(1-tmp_vec_t[0]*step/len(data)):
             now_point = point
             vec_t = tmp_vec_t
+            
+    div4vec_t = [vec_t[0]]
+    for i in range(len(vec_t)-1):
+        for j in range(1,5):
+            div4vec_t.append(vec_t[i] + (vec_t[i+1] - vec_t[i])*j/4)
     out = zeros(len(data), dtype = float64)
-    for i in range(len(vec_t)):
-        out[vec_t[i]*step] += 5
+    for i in range(len(div4vec_t)):
+        out[div4vec_t[i]*step] += 5
     write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
     os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.1 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
     print(vec_t[0])
-    return vec_t
+    return div4vec_t
+
+def cal_phrase(vec_t, vec_d):
+    yosa = zeros(len(vec_t)*2+2, dtype = float64)
+    for i in range(5,len(vec_t)-5):
+        for k in range(0,2):
+            for j in range(-5, 6):
+                yosa[i*2+k] += vec_d[vec_t[i]+(vec_t[i+1]-vec_t[i])*k/2+j]
+    tongari = zeros(16, dtype = float64)
+    for i in range(len(yosa)):
+        tongari[i%8] += yosa[i]
+
+    cut = 0
+    point = 0
+    for i in range(len(tongari)):
+        if point < tongari[i]:
+            cut = i
+            point = tongari[i]
+    if cut%2 == 1:
+        cut = math.floor(cut/2)
+        phrase = [math.floor((vec_t[cut]+vec_t[cut+1])/2)]
+        while cut+9 < len(vec_t):
+            cut += 8
+            phrase.append(math.floor((vec_t[cut]+vec_t[cut+1])/2))
+    else:
+        cut = math.floor(cut/2 + 0.5)
+        phrase = [vec_t[cut]]
+        while cut+16 < len(vec_t):
+            cut += 16
+            phrase.append(vec_t[cut])
+
+    out = zeros(len(data), dtype = float64)
+    for i in range(len(phrase)):
+        out[phrase[i]*step] += 5
+    write('./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav',fs,out)
+    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixphrase' + wavfile.replace(' ', '') + '.wav')
+        
+    return phrase
+
+def scale(spectrum):
+    N = len(win)
+    freqList = np.fft.fftfreq(N,d=1.0/fs)
+    bottom_scale = 220
+    top_scale = 880
+    freq = 150
+    power = 0
+    for i in range(len(spectrum)):
+        if(spectrum[i] > power) and bottom_scale < freqList[i] and freqList[i] < top_scale:
+            power = spectrum[i]
+            freq = freqList[i]
+    print(power, freq)
+    #make_graph(spectrum)    
+    return math.floor(math.log(440/freq,2) * 12 + 0.5) % 12
+
+def powerful_element(part, tsunagi):
+    N = len(win)
+    topspectrum = fft(part[: N] * win)[:N/2+1]
+    bottomspectrum = fft(part[len(part) - N - tsunagi * fs: len(part) - tsunagi * fs] * win)[:N/2+1]
+    top = scale(abs(topspectrum))
+    bottom = scale(abs(bottomspectrum))
+    return top,bottom
 
 def split_music(inputfile):
-    global fs, data, step, threshold, wavfile
+    global fs, data, step, threshold, wavfile, win
     wavfile = inputfile
     fs, data_tmp = read('./Music/' + wavfile)
     data = data_tmp[:,0]
@@ -137,7 +213,7 @@ def split_music(inputfile):
     step = fftLen / 4
     
     ### STFT
-    spectrogram = stft(data, win, step)
+    spectrogram = stft(data)
 
     ### 音の立ち上がり認識
     threshold = 500000
@@ -151,11 +227,18 @@ def split_music(inputfile):
     ### 初期位置の計算
     vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
 
+    ### todo: フレーズの抽出（8小節ごといい感じにに区切る）
+    phrase = cal_phrase(vec_t,vec_d)
+    
     ### 出力(最後の８小節は無音であることが多いのでカット)
-    i = 0
-    while i+8 < len(vec_t)-1:
-        write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[vec_t[i]*step:vec_t[i+8]*step])
-        i+=8
+    i=0
+    tsunagi=0.2 #spliceする時間[s]
+    for i in range(len(phrase)-2):
+        if phrase[i]*step - tsunagi*fs >= 0:
+            start_scale, end_scale = powerful_element(data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs], tsunagi)
+            write('./PartMusic/'+ str(start_scale) + '/' + str(end_scale) + '/'
+                  + wavfile.replace(' ', '') + '_' + str(i) + '.wav',
+                  fs, data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs])
 
 if __name__ == "__main__":
     files = os.listdir('Music')
