@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from scipy import ceil, complex64, float64, hamming, zeros
-from scipy.fftpack import fft# , ifft
-from scipy import ifft # こっちじゃないとエラー出るときあった気がする
+from scipy.fftpack import fft
+from scipy import ifft
 from scipy.io.wavfile import read, write
+import numpy as np
 
 from matplotlib import pylab as pl
 import os
@@ -12,7 +13,7 @@ x : 入力信号(モノラル)
 win : 窓関数
 step : シフト幅
 """
-def stft(x, win):
+def stft(x):
     l = len(x) # 入力信号の長さ
     N = len(win) # 窓幅、つまり切り出す幅
     M = int(ceil(float(l - N + step) / step)) # スペクトログラムの時間フレーム数
@@ -178,8 +179,31 @@ def cal_phrase(vec_t, vec_d):
         
     return phrase
 
+def scale(spectrum):
+    N = len(win)
+    freqList = np.fft.fftfreq(N,d=1.0/fs)
+    bottom_scale = 220
+    top_scale = 880
+    freq = 150
+    power = 0
+    for i in range(len(spectrum)):
+        if(spectrum[i] > power) and bottom_scale < freqList[i] and freqList[i] < top_scale:
+            power = spectrum[i]
+            freq = freqList[i]
+    print(power, freq)
+    #make_graph(spectrum)    
+    return math.floor(math.log(440/freq,2) * 12 + 0.5) % 12
+
+def powerful_element(part, tsunagi):
+    N = len(win)
+    topspectrum = fft(part[: N] * win)[:N/2+1]
+    bottomspectrum = fft(part[len(part) - N - tsunagi * fs: len(part) - tsunagi * fs] * win)[:N/2+1]
+    top = scale(abs(topspectrum))
+    bottom = scale(abs(bottomspectrum))
+    return top,bottom
+
 def split_music(inputfile):
-    global fs, data, step, threshold, wavfile
+    global fs, data, step, threshold, wavfile, win
     wavfile = inputfile
     fs, data_tmp = read('./Music/' + wavfile)
     data = data_tmp[:,0]
@@ -189,7 +213,7 @@ def split_music(inputfile):
     step = fftLen / 4
     
     ### STFT
-    spectrogram = stft(data, win)
+    spectrogram = stft(data)
 
     ### 音の立ち上がり認識
     threshold = 500000
@@ -211,7 +235,10 @@ def split_music(inputfile):
     tsunagi=0.2 #spliceする時間[s]
     for i in range(len(phrase)-2):
         if phrase[i]*step - tsunagi*fs >= 0:
-            write('./PartMusic/' + wavfile.replace(' ', '') + '_' + str(i) + '.wav', fs, data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs ])
+            start_scale, end_scale = powerful_element(data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs], tsunagi)
+            write('./PartMusic/'+ str(start_scale) + '/' + str(end_scale) + '/'
+                  + wavfile.replace(' ', '') + '_' + str(i) + '.wav',
+                  fs, data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs])
 
 if __name__ == "__main__":
     files = os.listdir('Music')
