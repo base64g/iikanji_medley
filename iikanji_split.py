@@ -183,7 +183,7 @@ def scale(spectrum):
     N = len(win)
     freqList = np.fft.fftfreq(N,d=1.0/fs)
     bottom_scale = 220
-    top_scale = 880
+    top_scale = 1600
     freq = 150
     power = 0
     for i in range(len(spectrum)):
@@ -208,7 +208,7 @@ def split_music(inputfile):
     fs, data_tmp = read('./Music/' + wavfile)
     data = data_tmp[:,0]
     
-    fftLen = 512 # とりあえず
+    fftLen = 1024 # とりあえず
     win = hamming(fftLen) # ハミング窓
     step = fftLen / 4
     
