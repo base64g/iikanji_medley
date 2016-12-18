@@ -196,8 +196,8 @@ def scale(spectrum):
 
 def powerful_element(part, tsunagi):
     N = len(win)
-    topspectrum = fft(part[: N] * win)[:N/2+1]
-    bottomspectrum = fft(part[len(part) - N - tsunagi * fs: len(part) - tsunagi * fs] * win)[:N/2+1]
+    topspectrum = fft(part[tsunagi * fs : tsunagi * fs + N] * win)[:N/2+1]
+    bottomspectrum = fft(part[len(part) - tsunagi * fs: len(part) - tsunagi * fs + N] * win)[:N/2+1]
     top = scale(abs(topspectrum))
     bottom = scale(abs(bottomspectrum))
     return top,bottom
