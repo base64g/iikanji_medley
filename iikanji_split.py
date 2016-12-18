@@ -220,8 +220,8 @@ def split_music(inputfile):
     vec_d = cal_beat_power(spectrogram)
     
     ### beatの計算
-    bottom_interval = 360
-    top_interval = 700
+    bottom_interval = 180
+    top_interval = 350
     best_interval = cal_interval(vec_d, bottom_interval, top_interval)
 
     ### 初期位置の計算
