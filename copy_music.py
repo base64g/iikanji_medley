@@ -12,4 +12,8 @@ def copyall(path):
                 shutil.copyfile(path+file, "./Music/" + file)
             
 if __name__ == "__main__":
-    copyall('/Users/admin/Music/iTunes/iTunes Media/Music/')
+    query = input()
+    if os.path.isfile(query) or os.path.isdir(query):
+        copyall(query)
+    else:
+        print('it is not a file or directory')
