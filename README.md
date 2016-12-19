@@ -10,5 +10,5 @@ wavファイルの音楽をいい感じに切り出して ./PartMusic/ 以下に
 `python3 iikanji_split.py`とした後に標準入力に`./Music/` 以下のwavファイル名を指定するとその音楽に対して，標準入力に`all`と入力すると`./Music/`以下のすべてのwavファイルに対して解析・処理を行う．
 #### random_play.py
 実行にはそsoxのインストールが必要
-`./PartMusic/以下に分類された音楽をいい感じにつなげてメドレーを生成するプログラム
+`./PartMusic/`以下に分類された音楽をいい感じにつなげてメドレーを生成するプログラム
 `python3 random_play.py`とするとメドレーの`./output.wav`が生成される．
