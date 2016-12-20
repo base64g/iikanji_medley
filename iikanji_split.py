@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib import pylab as pl
 import os
 import math
+import subprocess
 """
 x : 入力信号(モノラル)
 win : 窓関数
@@ -57,7 +58,14 @@ def make_graph(plots):
     pl.xlim([0, len(plots)])
     pl.title("Data", fontsize = 20)
     pl.show()
-    
+
+def max_power(spectrogram):
+    powerful = 0
+    for timespec in spectrogram:
+        for f in range(math.floor(len(timespec)/5)):
+            powerful = max(powerful, timespec[f])
+    return powerful
+
 def cal_beat_power(spectrogram):
     data2 = zeros(len(data), dtype = float64)
     vec_d = zeros(len(spectrogram), dtype = float64)
@@ -72,7 +80,7 @@ def cal_beat_power(spectrogram):
             vec_d[t] = flag
             data2[t*step] += 5
             print(t)
-    write('./DebugMusic/' + wavfile.replace(' ', '') + 'outonly.wav', fs, data2)
+    write('./DebugMusic/' + wavfile + 'outonly.wav', fs, data2)
     return vec_d
 
 def cal_interval(vec_d, bottom_interval, top_interval):
@@ -87,17 +95,13 @@ def cal_interval(vec_d, bottom_interval, top_interval):
     now_point = 0
     best_interval = 1
     for i in range(math.floor(bottom_interval/2), math.floor(top_interval/2)):
-        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
+        point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1] + beat_interval[math.floor(i/2)]
+        if now_point < point:
             if beat_interval[i*2] > beat_interval[i*2+1]:
                 best_interval = i*2
             else:
                 best_interval = i*2+1
-            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
-
-    for i in range(bottom_interval, top_interval):
-        if now_point < beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]:
-            best_interval = i
-            now_point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1]
+            now_point = point
 
     print(best_interval)
     #make_graph(beat_interval)
@@ -136,9 +140,9 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     out = zeros(len(data), dtype = float64)
     for i in range(len(div4vec_t)):
         out[div4vec_t[i]*step] += 5
-    write('./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav',fs,out)
-    os.system('sox ./Music/' + wavfile.replace(' ', '\ ') + ' -c 1 ./DebugMusic/temp.wav')
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'beat.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixbeat' + wavfile.replace(' ', '') + '.wav')
+    write('./DebugMusic/' + wavfile +'beat.wav',fs,out)
+    subprocess.call('sox \'./Music/' + wavfile + '\'' + ' -c 1 ./DebugMusic/temp.wav', shell=True)
+    subprocess.call('sox -m \'./DebugMusic/' + wavfile +'beat.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixbeat' + wavfile + '.wav\'', shell=True)
     print(vec_t[0])
     return div4vec_t
 
@@ -174,8 +178,8 @@ def cal_phrase(vec_t, vec_d):
     out = zeros(len(data), dtype = float64)
     for i in range(len(phrase)):
         out[phrase[i]*step] += 5
-    write('./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav',fs,out)
-    os.system('sox -m ./DebugMusic/' + wavfile.replace(' ', '') +'phrase.wav -v 0.3 ./DebugMusic/temp.wav ./DebugMusic/mixphrase' + wavfile.replace(' ', '') + '.wav')
+    write('./DebugMusic/' + wavfile +'phrase.wav',fs,out)
+    subprocess.call('sox -m \'./DebugMusic/' + wavfile +'phrase.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixphrase' + wavfile + '.wav\'', shell=True)
         
     return phrase
 
@@ -216,7 +220,7 @@ def split_music(inputfile):
     spectrogram = stft(data)
 
     ### 音の立ち上がり認識
-    threshold = 500000
+    threshold = math.floor(max_power(spectrogram) / 40)
     vec_d = cal_beat_power(spectrogram)
     
     ### beatの計算
@@ -237,7 +241,7 @@ def split_music(inputfile):
         if phrase[i]*step - tsunagi*fs >= 0:
             start_scale, end_scale = powerful_element(data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs], tsunagi)
             write('./PartMusic/'+ str(start_scale) + '/' + str(end_scale) + '/'
-                  + wavfile.replace(' ', '') + '_' + str(i) + '.wav',
+                  + wavfile + '_' + str(i) + '.wav',
                   fs, data[phrase[i]*step - tsunagi*fs : phrase[i+1]*step + tsunagi*fs])
 
 if __name__ == "__main__":

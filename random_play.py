@@ -45,7 +45,7 @@ if __name__ == "__main__":
             add = musics[now][rand][rand2]
             now = rand
         print(add)
-        subprocess.call("sox " + add + ' add.wav norm'  ,shell=True)
+        subprocess.call("sox \'" + add + '\' add.wav norm'  ,shell=True)
         subprocess.call("sox output.wav add.wav output2.wav splice -q $(soxi -D output.wav),0.2"  ,shell=True)
         subprocess.call("mv output2.wav output.wav"  ,shell=True)
         subprocess.call("rm add.wav"  ,shell=True)
