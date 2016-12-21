@@ -140,9 +140,10 @@ def cal_start(vec_d, best_interval, bottom_interval, top_interval):
     out = zeros(len(data), dtype = float64)
     for i in range(len(div4vec_t)):
         out[div4vec_t[i]*step] += 5
-    write('./DebugMusic/' + wavfile +'beat.wav',fs,out)
-    subprocess.call('sox \'./Music/' + wavfile + '\'' + ' -c 1 ./DebugMusic/temp.wav', shell=True)
-    subprocess.call('sox -m \'./DebugMusic/' + wavfile +'beat.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixbeat' + wavfile + '.wav\'', shell=True)
+    #write('./DebugMusic/' + wavfile +'beat.wav',fs,out)
+    #subprocess.call('sox \'./Music/' + wavfile + '\'' + ' -c 1 ./DebugMusic/temp.wav', shell=True)
+    #subprocess.call('sox -m \'./DebugMusic/' + wavfile +'beat.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixbeat' + wavfile + '.wav\'', shell=True)
+    #subprocess.call('rm \'./DebugMusic/' + wavfile +'beat.wav\'', shell=True)
     print(vec_t[0])
     return div4vec_t
 
@@ -178,9 +179,9 @@ def cal_phrase(vec_t, vec_d):
     out = zeros(len(data), dtype = float64)
     for i in range(len(phrase)):
         out[phrase[i]*step] += 5
-    write('./DebugMusic/' + wavfile +'phrase.wav',fs,out)
-    subprocess.call('sox -m \'./DebugMusic/' + wavfile +'phrase.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixphrase' + wavfile + '.wav\'', shell=True)
-        
+    #write('./DebugMusic/' + wavfile +'phrase.wav',fs,out)
+    #subprocess.call('sox -m \'./DebugMusic/' + wavfile +'phrase.wav\' -v 0.3 ./DebugMusic/temp.wav \'./DebugMusic/mixphrase' + wavfile + '.wav\'', shell=True)
+    #subprocess.call('rm ./DebugMusic/\'' + wavfile + 'phrase.wav\'' , shell=True)
     return phrase
 
 def scale(spectrum):
