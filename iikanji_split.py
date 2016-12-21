@@ -165,13 +165,13 @@ def cal_phrase(vec_t, vec_d):
     if cut%2 == 1:
         cut = math.floor(cut/2)
         phrase = [math.floor((vec_t[cut]+vec_t[cut+1])/2)]
-        while cut+9 < len(vec_t):
+        while cut+33 < len(vec_t):
             cut += 32
             phrase.append(math.floor((vec_t[cut]+vec_t[cut+1])/2))
     else:
         cut = math.floor(cut/2 + 0.5)
         phrase = [vec_t[cut]]
-        while cut+8 < len(vec_t):
+        while cut+32 < len(vec_t):
             cut += 32
             phrase.append(vec_t[cut])
 
