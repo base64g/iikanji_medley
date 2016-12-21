@@ -29,7 +29,7 @@ if __name__ == "__main__":
     size = len(musicline)
     rand = random.randrange(0, size)
     now = int(musicline[rand].split("/")[1])
-    subprocess.call("sox " + musicline[rand] + ' output.wav norm'  ,shell=True)
+    subprocess.call("sox \'" + musicline[rand] + '\' output.wav norm'  ,shell=True)
     
     for t in range(0,100):
         for u in range(0,10):
