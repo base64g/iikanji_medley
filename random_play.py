@@ -7,13 +7,13 @@ import os
 def getmusic():
     musics = [[[]]]
     musicline = []
-    for i in range(0,11):
+    for i in range(0,12):
         musics.append([[]])
-    for i in range(0,12):
-        for j in range(0,11):
-            musics[i].append([])
-    for i in range(0,12):
+    for i in range(0,13):
         for j in range(0,12):
+            musics[i].append([])
+    for i in range(0,13):
+        for j in range(0,13):
             path = 'PartMusic/' + str(i) + '/' + str(j) + '/'
             files = os.listdir(path)
             for file in files:
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     
     for t in range(0,100):
         for u in range(0,10):
-            rand = random.randrange(0,12)
+            rand = random.randrange(0,13)
             if len(musics[now][rand]) > 0:
                 break
         if len(musics[now][rand]) == 0:

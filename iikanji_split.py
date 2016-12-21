@@ -195,8 +195,11 @@ def scale(spectrum):
             power = spectrum[i]
             freq = freqList[i]
     print(power, freq)
-    #make_graph(spectrum)    
-    return math.floor(math.log(440/freq,2) * 12 + 0.5) % 12
+    #make_graph(spectrum)
+    if power > threshold:
+        return math.floor(math.log(440/freq,2) * 12 + 0.5) % 12
+    else:
+        return 12
 
 def powerful_element(part, tsunagi):
     N = len(win)
