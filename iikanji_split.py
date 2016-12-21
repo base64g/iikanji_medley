@@ -80,7 +80,7 @@ def cal_beat_power(spectrogram):
             vec_d[t] = flag
             data2[t*step] += 5
             print(t)
-    write('./DebugMusic/' + wavfile + 'outonly.wav', fs, data2)
+    #write('./DebugMusic/' + wavfile + 'outonly.wav', fs, data2)
     return vec_d
 
 def cal_interval(vec_d, bottom_interval, top_interval):
