@@ -93,7 +93,7 @@ def cal_interval(vec_d, bottom_interval, top_interval):
                     break
                 beat_interval[t2] += vec_d[t+t2]
     now_point = 0
-    best_interval = 1
+    best_interval = 10
     for i in range(math.floor(bottom_interval/2), math.floor(top_interval/2)):
         point = beat_interval[i] + beat_interval[i-1] + beat_interval[i+1] + beat_interval[math.floor(i/2)]
         if now_point < point:
@@ -166,13 +166,13 @@ def cal_phrase(vec_t, vec_d):
         cut = math.floor(cut/2)
         phrase = [math.floor((vec_t[cut]+vec_t[cut+1])/2)]
         while cut+9 < len(vec_t):
-            cut += 8
+            cut += 32
             phrase.append(math.floor((vec_t[cut]+vec_t[cut+1])/2))
     else:
         cut = math.floor(cut/2 + 0.5)
         phrase = [vec_t[cut]]
-        while cut+16 < len(vec_t):
-            cut += 16
+        while cut+8 < len(vec_t):
+            cut += 32
             phrase.append(vec_t[cut])
 
     out = zeros(len(data), dtype = float64)
@@ -196,7 +196,7 @@ def scale(spectrum):
             freq = freqList[i]
     print(power, freq)
     #make_graph(spectrum)
-    if power > threshold:
+    if power > threshold*2:
         return math.floor(math.log(440/freq,2) * 12 + 0.5) % 12
     else:
         return 12
@@ -234,10 +234,10 @@ def split_music(inputfile):
     ### 初期位置の計算
     vec_t = cal_start(vec_d, best_interval, bottom_interval, top_interval)
 
-    ### todo: フレーズの抽出（8小節ごといい感じにに区切る）
+    ### todo: フレーズの抽出（32小節ごといい感じにに区切る）
     phrase = cal_phrase(vec_t,vec_d)
     
-    ### 出力(最後の８小節は無音であることが多いのでカット)
+    ### 出力(最後の32小節は無音であることが多いのでカット)
     i=0
     tsunagi=0.2 #spliceする時間[s]
     for i in range(len(phrase)-2):
